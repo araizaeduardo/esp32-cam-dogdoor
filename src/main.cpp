@@ -98,6 +98,8 @@ const unsigned long AUDIO_COOLDOWN = 300000;  // 5 minutos mínimo entre audios
 
 bool relayState = false;
 bool manualMode = false;  // Modo manual para control del relay
+unsigned long dogExitTime = 0;  // Tiempo cuando el perro sale
+unsigned long dogOutsideDuration = 0;  // Duración del perro fuera (en segundos)
 
 // ============================================
 // CONFIGURACIÓN DE DETECCIÓN DE MOVIMIENTO
@@ -374,6 +376,7 @@ void updateStateMachine(bool motionDetected) {
 
     case DOG_OUTSIDE:
       Serial.println("Perro fuera - relay activo esperando retorno");
+      dogExitTime = millis();  // Registrar tiempo de salida
       currentState = WAITING_FOR_RETURN;
       stateChangeTime = millis();
       break;
@@ -385,6 +388,13 @@ void updateStateMachine(bool motionDetected) {
         if (motionDetected) {
           Serial.println("¡Perro confirmado por cámara!");
           setRelay(false);
+          
+          // Calcular duración fuera
+          dogOutsideDuration = (millis() - dogExitTime) / 1000;  // Convertir a segundos
+          Serial.print("El perro estuvo fuera por: ");
+          Serial.print(dogOutsideDuration);
+          Serial.println(" segundos");
+          
           currentState = DOG_RETURNED;
           stateChangeTime = millis();
         }
@@ -471,6 +481,10 @@ void handleRoot() {
   html += "<div class='status-item'>";
   html += "<span class='status-label'>Hora actual:</span>";
   html += "<span class='status-value' id='time'>--:--:--</span>";
+  html += "</div>";
+  html += "<div class='status-item'>";
+  html += "<span class='status-label'>Tiempo fuera (último):</span>";
+  html += "<span class='status-value' id='dogOutsideDuration'>" + String(dogOutsideDuration) + "s</span>";
   html += "</div></div>";
   
   html += "<div class='card'>";
@@ -557,6 +571,7 @@ void handleRoot() {
   html += "document.getElementById('relay').className = 'status-value ' + (data.relay ? 'active' : 'inactive');";
   html += "document.getElementById('ir').textContent = data.ir_sensor ? 'ACTIVO' : 'INACTIVO';";
   html += "document.getElementById('ir').className = 'status-value ' + (data.ir_sensor ? 'active' : 'inactive');";
+  html += "document.getElementById('dogOutsideDuration').textContent = data.dog_outside_duration + 's';";
   html += "});}";
   html += "function updateTime() {";
   html += "fetch('/time').then(r => r.text()).then(time => {";
@@ -635,7 +650,8 @@ void handleStatus() {
   json += "\"ir_sensor\":" + String(readIRSensor() ? "true" : "false") + ",";
   json += "\"manual\":" + String(manualMode ? "true" : "false") + ",";
   json += "\"flash\":" + String(flashManualState ? "true" : "false") + ",";
-  json += "\"flash_auto\":" + String(flashAutoMode ? "true" : "false");
+  json += "\"flash_auto\":" + String(flashAutoMode ? "true" : "false") + ",";
+  json += "\"dog_outside_duration\":" + String(dogOutsideDuration);
   json += "}";
   server.send(200, "application/json", json);
 }
@@ -1104,8 +1120,8 @@ void loop() {
     motionDetected = detectMotion();
     
     if (motionDetected) {
-      // Encender flash con cualquier movimiento (si está en horario)
-      if (isFlashScheduleActive()) {
+      // Encender flash con cualquier movimiento (solo en modo automático y dentro del horario)
+      if (flashAutoMode && isFlashScheduleActive()) {
         setFlash(true);
         Serial.println("Flash activado por movimiento");
       }
