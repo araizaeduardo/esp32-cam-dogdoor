@@ -82,6 +82,20 @@ Accede a `http://<IP_ESP32>/` para:
   - Horario del flash (inicio/fin)
 - **Vista de cámara** en tiempo real
 
+## Capturas de Pantalla
+
+### Vista de la cámara en tiempo real
+![Vista de cámara](screenshoot.jpg)
+
+### Configuración WiFi desde iPhone
+![Conexión WiFi iPhone](sample/00-wifiiphone.jpeg)
+
+### Portal de configuración WiFi
+![Configuración WiFi](sample/01-wificonfig.jpeg)
+
+### Panel de administración web
+![Interfaz web](sample/02-web.jpeg)
+
 ## API Endpoints
 
 | Método | Endpoint | Descripción |
