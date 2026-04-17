@@ -61,6 +61,8 @@ int flashStartHour = 18;  // Hora inicio (18:00)
 int flashEndHour = 7;     // Hora fin (7:00) - cruza medianoche
 bool flashAutoMode = false;  // Activación automática por movimiento
 bool flashManualState = true;  // Estado manual del flash
+unsigned long lastMotionTime = 0;  // Tiempo de la última detección de movimiento
+const unsigned long FLASH_TIMEOUT = 10000;  // 10 segundos sin movimiento para apagar flash
 
 // ============================================
 // CONFIGURACIÓN DE ZONA HORARIA
@@ -259,6 +261,7 @@ bool detectMotion() {
       consecutiveMotionFrames++;
       if (consecutiveMotionFrames >= motionMinFrames) {
         motionDetected = true;
+        lastMotionTime = millis();  // Actualizar tiempo de última detección
       }
     } else {
       consecutiveMotionFrames = 0;  // Resetear contador si no cumple filtros
@@ -326,36 +329,24 @@ bool shouldPlayAudio() {
 // ============================================
 // MÁQUINA DE ESTADOS
 // ============================================
-void updateStateMachine() {
+void updateStateMachine(bool motionDetected) {
   static unsigned long stateChangeTime = 0;
   const unsigned long DEBOUNCE_TIME = 2000;  // 2 segundos debounce
   
   switch (currentState) {
     case WAITING_FOR_DOG:
       // En modo manual, no detectar automáticamente
-      if (!manualMode) {
-        if (millis() - lastFrameTime > FRAME_INTERVAL) {
-          lastFrameTime = millis();
-          if (detectMotion()) {
-            Serial.println("¡Perro detectado por cámara!");
-            setRelay(true);
-            
-            // Activar flash si está en modo automático y dentro del horario
-            if (flashAutoMode && isFlashScheduleActive()) {
-              setFlash(true);
-              Serial.println("Flash activado por detección");
-            }
-            
-            currentState = DOG_DETECTED;
-            stateChangeTime = millis();
-          }
-        }
+      if (motionDetected) {
+        Serial.println("¡Perro detectado por cámara!");
+        setRelay(true);
+        currentState = DOG_DETECTED;
+        stateChangeTime = millis();
+      }
         
-        // Reproducir audio si es hora apropiada
-        if (shouldPlayAudio()) {
-          playAudio();
-          lastAudioTime = millis();
-        }
+      // Reproducir audio si es hora apropiada
+      if (shouldPlayAudio()) {
+        playAudio();
+        lastAudioTime = millis();
       }
       break;
 
@@ -391,14 +382,11 @@ void updateStateMachine() {
       if (readIRSensor()) {
         Serial.println("Sensor IR detectó retorno del perro");
         // Verificar con cámara que sea el perro
-        if (millis() - lastFrameTime > FRAME_INTERVAL) {
-          lastFrameTime = millis();
-          if (detectMotion()) {
-            Serial.println("¡Perro confirmado por cámara!");
-            setRelay(false);
-            currentState = DOG_RETURNED;
-            stateChangeTime = millis();
-          }
+        if (motionDetected) {
+          Serial.println("¡Perro confirmado por cámara!");
+          setRelay(false);
+          currentState = DOG_RETURNED;
+          stateChangeTime = millis();
         }
       }
       break;
@@ -1109,8 +1097,29 @@ void setup() {
 void loop() {
   server.handleClient();
   
-  // Actualizar máquina de estados
-  updateStateMachine();
+  // Verificar movimiento para flash y máquina de estados
+  bool motionDetected = false;
+  if (millis() - lastFrameTime >= FRAME_INTERVAL) {
+    lastFrameTime = millis();
+    motionDetected = detectMotion();
+    
+    if (motionDetected) {
+      // Encender flash con cualquier movimiento (si está en horario)
+      if (isFlashScheduleActive()) {
+        setFlash(true);
+        Serial.println("Flash activado por movimiento");
+      }
+    }
+  }
+  
+  // Actualizar máquina de estados con resultado de detección
+  updateStateMachine(motionDetected);
+  
+  // Apagar flash después de 10 segundos sin movimiento
+  if (lastMotionTime > 0 && millis() - lastMotionTime > FLASH_TIMEOUT) {
+    setFlash(false);
+    lastMotionTime = 0;  // Resetear para evitar múltiples apagados
+  }
   
   delay(10);  // Pequeño delay para no saturar el CPU
 }
