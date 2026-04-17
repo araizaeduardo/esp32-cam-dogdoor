@@ -990,7 +990,7 @@ void setup() {
   pinMode(ISD1820_PLAY_PIN, OUTPUT);
   pinMode(FLASH_LED_PIN, OUTPUT);
   
-  digitalWrite(RELAY_PIN, LOW);
+  setRelay(false);  // Asegurar relay apagado al inicio
   digitalWrite(ISD1820_PLAY_PIN, LOW);
   digitalWrite(FLASH_LED_PIN, LOW);
   
