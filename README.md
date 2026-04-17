@@ -9,6 +9,10 @@ Sistema completo para detección de perros usando ESP32-CAM con relay, sensor IR
 - **Sensor infrarrojo** para detectar salida/regreso
 - **Módulo ISD1820** para mensajes de audio programados
 - **Flash LED** automático, manual y con horario configurable
+  - **Timeout automático**: se apaga después de 10 segundos sin movimiento
+  - **Modo manual**: solo responde a botones manuales
+- **Registro de tiempo fuera**: muestra cuánto tiempo duró el perro fuera
+- **Relay apagado por defecto** al inicio del sistema
 - **Interfaz web** completa de administración
 - **Sincronización NTP** con zona horaria configurable
 - **WiFi Manager**: Portal cautivo para configuración inicial sin recompilar

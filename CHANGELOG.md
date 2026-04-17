@@ -2,6 +2,22 @@
 
 Todos los cambios importantes del proyecto se documentan en este archivo.
 
+## [1.7.0] - 2026-04-17
+
+### Añadido
+- **Timeout automático del flash**: se apaga después de 10 segundos sin movimiento detectado
+- **Registro de tiempo fuera del perro**:
+  - Variable `dogExitTime` para registrar momento de salida
+  - Variable `dogOutsideDuration` para calcular duración en segundos
+  - Muestra tiempo en Monitor Serie al regresar el perro
+  - Campo `dog_outside_duration` en endpoint `/status`
+  - Visualización en interfaz web: "Tiempo fuera (último): Xs"
+- **Relay apagado por defecto**: `setRelay(false)` explícito al inicio del sistema
+
+### Corregido
+- **Modo manual del flash**: ahora respeta el modo manual y no se enciende automáticamente con movimiento
+- Solo se enciende con movimiento si `flashAutoMode` está activado
+
 ## [1.6.0] - 2026-04-16
 
 ### Añadido
