@@ -1,0 +1,23 @@
+# Python virtual environments
+venv/
+venv
+
+# PlatformIO
+.pio/
+.pio/build/
+.pio/libdeps/
+.platformio/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Archivos temporales
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
