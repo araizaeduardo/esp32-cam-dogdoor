@@ -97,6 +97,18 @@ const unsigned long AUDIO_COOLDOWN = 300000;  // 5 minutos mínimo entre audios
 bool relayState = false;
 bool manualMode = false;  // Modo manual para control del relay
 
+// ============================================
+// CONFIGURACIÓN DE DETECCIÓN DE MOVIMIENTO
+// ============================================
+int motionThreshold = 30;        // Umbral de diferencia de píxeles (0-255)
+int motionMinArea = 50;          // Área mínima de movimiento (píxeles)
+int motionMaxArea = 5000;        // Área máxima de movimiento (píxeles)
+int motionMinFrames = 2;          // Frames consecutivos requeridos
+int motionMaxPercentage = 1;     // Porcentaje máximo de píxeles diferentes (0-100)
+
+// Variables para lógica de filtrado
+int consecutiveMotionFrames = 0;
+
 
 // ============================================
 // FUNCIONES DE CONTROL DEL FLASH
@@ -141,6 +153,16 @@ void saveConfig() {
     file.println(flashStartHour);
     file.print("flash_end=");
     file.println(flashEndHour);
+    file.print("motion_threshold=");
+    file.println(motionThreshold);
+    file.print("motion_min_area=");
+    file.println(motionMinArea);
+    file.print("motion_max_area=");
+    file.println(motionMaxArea);
+    file.print("motion_min_frames=");
+    file.println(motionMinFrames);
+    file.print("motion_max_percentage=");
+    file.println(motionMaxPercentage);
     file.close();
     Serial.println("Configuración guardada");
   } else {
@@ -177,6 +199,26 @@ void loadConfig() {
           flashEndHour = line.substring(10).toInt();
           Serial.print("Horario flash fin cargado: ");
           Serial.println(flashEndHour);
+        } else if (line.startsWith("motion_threshold=")) {
+          motionThreshold = line.substring(17).toInt();
+          Serial.print("Umbral de movimiento cargado: ");
+          Serial.println(motionThreshold);
+        } else if (line.startsWith("motion_min_area=")) {
+          motionMinArea = line.substring(16).toInt();
+          Serial.print("Área mínima cargada: ");
+          Serial.println(motionMinArea);
+        } else if (line.startsWith("motion_max_area=")) {
+          motionMaxArea = line.substring(16).toInt();
+          Serial.print("Área máxima cargada: ");
+          Serial.println(motionMaxArea);
+        } else if (line.startsWith("motion_min_frames=")) {
+          motionMinFrames = line.substring(18).toInt();
+          Serial.print("Frames mínimos cargados: ");
+          Serial.println(motionMinFrames);
+        } else if (line.startsWith("motion_max_percentage=")) {
+          motionMaxPercentage = line.substring(22).toInt();
+          Serial.print("Porcentaje máximo cargado: ");
+          Serial.println(motionMaxPercentage);
         }
       }
       file.close();
@@ -202,18 +244,27 @@ bool detectMotion() {
   
   if (previousFrame != NULL && fb->len == previousFrame->len) {
     int diffCount = 0;
-    int threshold = 30;  // Umbral de diferencia de píxeles
-    int maxDiff = fb->len / 100;  // Máximo 1% de píxeles diferentes
+    int maxDiff = (fb->len * motionMaxPercentage) / 100;  // Porcentaje máximo configurado
     
+    // Contar píxeles diferentes
     for (int i = 0; i < fb->len && diffCount < maxDiff; i++) {
-      if (abs(fb->buf[i] - previousFrame->buf[i]) > threshold) {
+      if (abs(fb->buf[i] - previousFrame->buf[i]) > motionThreshold) {
         diffCount++;
       }
     }
     
-    if (diffCount > maxDiff / 2) {
-      motionDetected = true;
+    // Filtro de área mínima y máxima
+    if (diffCount >= motionMinArea && diffCount <= motionMaxArea) {
+      // Filtro de frames consecutivos
+      consecutiveMotionFrames++;
+      if (consecutiveMotionFrames >= motionMinFrames) {
+        motionDetected = true;
+      }
+    } else {
+      consecutiveMotionFrames = 0;  // Resetear contador si no cumple filtros
     }
+  } else {
+    consecutiveMotionFrames = 0;  // Resetear si no hay frame anterior
   }
 
   if (previousFrame != NULL) {
@@ -490,6 +541,21 @@ void handleRoot() {
   html += "<button class='btn btn-primary' onclick='saveWiFi()'>Guardar WiFi</button>";
   html += "</div>";
   
+  html += "<div class='card'>";
+  html += "<h2>🎯 Configuración de Detección de Movimiento</h2>";
+  html += "<p>Umbral de diferencia de píxeles (0-255):</p>";
+  html += "<input type='number' id='motionThreshold' value='" + String(motionThreshold) + "' min='0' max='255' style='width: 100%; padding: 8px; margin: 5px 0; background: #0f3460; border: 1px solid #e94560; color: #eee; border-radius: 5px;'>";
+  html += "<p>Área mínima de movimiento (píxeles):</p>";
+  html += "<input type='number' id='motionMinArea' value='" + String(motionMinArea) + "' min='0' style='width: 100%; padding: 8px; margin: 5px 0; background: #0f3460; border: 1px solid #e94560; color: #eee; border-radius: 5px;'>";
+  html += "<p>Área máxima de movimiento (píxeles):</p>";
+  html += "<input type='number' id='motionMaxArea' value='" + String(motionMaxArea) + "' min='0' style='width: 100%; padding: 8px; margin: 5px 0; background: #0f3460; border: 1px solid #e94560; color: #eee; border-radius: 5px;'>";
+  html += "<p>Frames consecutivos requeridos:</p>";
+  html += "<input type='number' id='motionMinFrames' value='" + String(motionMinFrames) + "' min='1' max='10' style='width: 100%; padding: 8px; margin: 5px 0; background: #0f3460; border: 1px solid #e94560; color: #eee; border-radius: 5px;'>";
+  html += "<p>Porcentaje máximo de píxeles diferentes (0-100%):</p>";
+  html += "<input type='number' id='motionMaxPercentage' value='" + String(motionMaxPercentage) + "' min='0' max='100' style='width: 100%; padding: 8px; margin: 5px 0; background: #0f3460; border: 1px solid #e94560; color: #eee; border-radius: 5px;'>";
+  html += "<button class='btn btn-primary' onclick='saveMotionConfig()'>Guardar Configuración de Movimiento</button>";
+  html += "</div>";
+  
   html += "<div class='card camera-container'>";
   html += "<h2>📷 Vista de Cámara</h2>";
   html += "<img id='camera-feed' src='/capture' alt='Cámara' onload='setTimeout(() => this.src=\"/capture?t=\" + new Date().getTime(), 500)'>";
@@ -532,12 +598,20 @@ void handleRoot() {
   html += "}";
   html += "function saveTimezone() {";
   html += "const offset = document.getElementById('timezoneOffset').value;";
-  html += "fetch('/timezone', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offset: offset }) }).then(() => alert('Zona horaria guardada. Reinicia el dispositivo.'));";
+  html += "fetch('/timezone', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offset: offset }) }).then(() => alert('Zona horaria guardada'));";
   html += "}";
   html += "function saveWiFi() {";
   html += "const ssid = document.getElementById('wifiSSID').value;";
   html += "const pass = document.getElementById('wifiPassword').value;";
-  html += "fetch('/wifi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid: ssid, password: pass }) }).then(() => alert('WiFi guardado. Reinicia el dispositivo.'));";
+  html += "fetch('/wifi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid: ssid, password: pass }) }).then(() => alert('WiFi guardado'));";
+  html += "}";
+  html += "function saveMotionConfig() {";
+  html += "const threshold = document.getElementById('motionThreshold').value;";
+  html += "const minArea = document.getElementById('motionMinArea').value;";
+  html += "const maxArea = document.getElementById('motionMaxArea').value;";
+  html += "const minFrames = document.getElementById('motionMinFrames').value;";
+  html += "const maxPercentage = document.getElementById('motionMaxPercentage').value;";
+  html += "fetch('/motionconfig', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threshold: threshold, minArea: minArea, maxArea: maxArea, minFrames: minFrames, maxPercentage: maxPercentage }) }).then(() => alert('Configuración de movimiento guardada'));";
   html += "}";
   html += "setInterval(updateStatus, 1000);";
   html += "setInterval(updateTime, 1000);";
@@ -795,6 +869,70 @@ void handleWiFi() {
   }
 }
 
+void handleMotionConfig() {
+  if (server.method() == HTTP_POST) {
+    String body = server.arg("plain");
+    // Parse JSON simple: {"threshold":30,"minArea":50,"maxArea":5000,"minFrames":2,"maxPercentage":1}
+    
+    int thresholdIdx = body.indexOf("\"threshold\":");
+    int minAreaIdx = body.indexOf("\"minArea\":");
+    int maxAreaIdx = body.indexOf("\"maxArea\":");
+    int minFramesIdx = body.indexOf("\"minFrames\":");
+    int maxPercentageIdx = body.indexOf("\"maxPercentage\":");
+    
+    if (thresholdIdx >= 0 && minAreaIdx >= 0 && maxAreaIdx >= 0 && minFramesIdx >= 0 && maxPercentageIdx >= 0) {
+      String thresholdStr = body.substring(thresholdIdx + 12);
+      String minAreaStr = body.substring(minAreaIdx + 10);
+      String maxAreaStr = body.substring(maxAreaIdx + 10);
+      String minFramesStr = body.substring(minFramesIdx + 13);
+      String maxPercentageStr = body.substring(maxPercentageIdx + 18);
+      
+      // Extraer valores (hasta la comilla o coma)
+      int thresholdEnd = thresholdStr.indexOf("\"");
+      int minAreaEnd = minAreaStr.indexOf("\"");
+      int maxAreaEnd = maxAreaStr.indexOf("\"");
+      int minFramesEnd = minFramesStr.indexOf("\"");
+      int maxPercentageEnd = maxPercentageStr.indexOf("\"");
+      
+      if (thresholdEnd > 0) thresholdStr = thresholdStr.substring(0, thresholdEnd);
+      if (minAreaEnd > 0) minAreaStr = minAreaStr.substring(0, minAreaEnd);
+      if (maxAreaEnd > 0) maxAreaStr = maxAreaStr.substring(0, maxAreaEnd);
+      if (minFramesEnd > 0) minFramesStr = minFramesStr.substring(0, minFramesEnd);
+      if (maxPercentageEnd > 0) maxPercentageStr = maxPercentageStr.substring(0, maxPercentageEnd);
+      
+      thresholdStr.trim();
+      minAreaStr.trim();
+      maxAreaStr.trim();
+      minFramesStr.trim();
+      maxPercentageStr.trim();
+      
+      motionThreshold = thresholdStr.toInt();
+      motionMinArea = minAreaStr.toInt();
+      motionMaxArea = maxAreaStr.toInt();
+      motionMinFrames = minFramesStr.toInt();
+      motionMaxPercentage = maxPercentageStr.toInt();
+      
+      // Resetear contador de frames consecutivos
+      consecutiveMotionFrames = 0;
+      
+      saveConfig();
+      
+      Serial.println("Configuración de movimiento actualizada:");
+      Serial.print("  Threshold: "); Serial.println(motionThreshold);
+      Serial.print("  Min Area: "); Serial.println(motionMinArea);
+      Serial.print("  Max Area: "); Serial.println(motionMaxArea);
+      Serial.print("  Min Frames: "); Serial.println(motionMinFrames);
+      Serial.print("  Max Percentage: "); Serial.println(motionMaxPercentage);
+      
+      server.send(200, "text/plain", "Configuración de movimiento guardada");
+    } else {
+      server.send(400, "text/plain", "Formato JSON inválido");
+    }
+  } else {
+    server.send(405, "text/plain", "Método no permitido");
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -961,6 +1099,7 @@ void setup() {
   server.on("/flashschedule", HTTP_POST, handleFlashSchedule);
   server.on("/timezone", HTTP_POST, handleTimezone);
   server.on("/wifi", HTTP_POST, handleWiFi);
+  server.on("/motionconfig", HTTP_POST, handleMotionConfig);
   
   server.begin();
   Serial.println("Servidor web iniciado");
