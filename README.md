@@ -4,7 +4,7 @@ Sistema completo para detección de perros usando ESP32-CAM con relay, sensor IR
 
 ## Características
 
-- **Detección de movimiento** por cámara (frame differencing)
+- **Detección de movimiento** por cámara (frame differencing) con filtros configurables
 - **Control de relay** al detectar al perro
 - **Sensor infrarrojo** para detectar salida/regreso
 - **Módulo ISD1820** para mensajes de audio programados
@@ -80,6 +80,7 @@ Accede a `http://<IP_ESP32>/` para:
   - Zona horaria (UTC offset)
   - Horarios de audio (4 horas)
   - Horario del flash (inicio/fin)
+  - Detección de movimiento (filtros avanzados)
 - **Vista de cámara** en tiempo real
 
 ## Capturas de Pantalla
@@ -114,6 +115,7 @@ Accede a `http://<IP_ESP32>/` para:
 | POST | `/flashschedule` | Actualizar horario del flash |
 | POST | `/timezone` | Actualizar zona horaria |
 | POST | `/wifi` | Guardar credenciales WiFi |
+| POST | `/motionconfig` | Guardar configuración de detección de movimiento |
 
 ## Flujo del Sistema (Máquina de Estados)
 
@@ -135,6 +137,11 @@ Accede a `http://<IP_ESP32>/` para:
 | Horas audio | 8, 12, 18, 21 |
 | AP WiFi config | `ESP32-CAM-Config` / `12345678` |
 | Portal WiFi | http://192.168.4.1 |
+| Umbral movimiento | 30 |
+| Área mínima | 50 píxeles |
+| Área máxima | 5000 píxeles |
+| Frames mínimos | 2 |
+| Porcentaje máximo | 1% |
 
 ## Persistencia
 
@@ -142,6 +149,7 @@ Toda la configuración se guarda en SPIFFS (`/config.txt`):
 - Credenciales WiFi
 - Zona horaria
 - Horario del flash
+- Configuración de detección de movimiento (filtros)
 
 Las credenciales WiFi también se almacenan en NVS (gestionadas por WiFiManager).
 
@@ -166,6 +174,20 @@ Las credenciales WiFi también se almacenan en NVS (gestionadas por WiFiManager)
 **Sensor IR no detecta**:
 - Verifica polaridad y alimentación
 - Ajusta sensibilidad (potenciómetro en PIR)
+
+**Demasiados falsos positivos (movimiento sin perro)**:
+- Aumenta el **umbral de movimiento** (threshold) para ignorar cambios pequeños
+- Aumenta el **área mínima** para ignorar objetos pequeños
+- Reduce el **área máxima** para ignorar movimientos grandes (personas)
+- Aumenta los **frames mínimos** para requerir detección más consistente
+- Reduce el **porcentaje máximo** para ser más estricto
+
+**No detecta al perro**:
+- Reduce el **umbral de movimiento** para ser más sensible
+- Reduce el **área mínima** para detectar objetos más pequeños
+- Aumenta el **área máxima** para permitir movimientos más grandes
+- Reduce los **frames mínimos** para requerir menos consistencia
+- Aumenta el **porcentaje máximo** para ser más permisivo
 
 ## Estructura del Proyecto
 

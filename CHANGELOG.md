@@ -2,6 +2,28 @@
 
 Todos los cambios importantes del proyecto se documentan en este archivo.
 
+## [1.6.0] - 2026-04-16
+
+### Añadido
+- **Filtros avanzados de detección de movimiento** configurables desde la interfaz web:
+  - Umbral de diferencia de píxeles (0-255)
+  - Área mínima de movimiento (píxeles)
+  - Área máxima de movimiento (píxeles)
+  - Frames consecutivos requeridos
+  - Porcentaje máximo de píxeles diferentes (0-100%)
+- Endpoint `/motionconfig` (POST) para guardar configuración de movimiento
+- Persistencia de filtros de movimiento en SPIFFS
+- Lógica de filtrado en `detectMotion()` para reducir falsos positivos:
+  - Ignora movimientos muy pequeños (< motionMinArea)
+  - Ignora movimientos muy grandes (> motionMaxArea)
+  - Requiere detección en N frames consecutivos (motionMinFrames)
+  - Usa porcentaje configurable de píxeles diferentes
+- Sección de solución de problemas para ajustar sensibilidad de detección
+
+### Cambiado
+- Mejorada precisión de detección de movimiento con filtros configurables
+- Valores por defecto: threshold=30, minArea=50, maxArea=5000, minFrames=2, maxPercentage=1
+
 ## [1.5.0] - 2026-04-16
 
 ### Añadido
